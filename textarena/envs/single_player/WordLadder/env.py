@@ -84,7 +84,7 @@ class WordLadderEnv(ta.Env):
 
         ## initialize the game state
         self.word_graph = self._generate_word_graph()
-        self.start_word, self.target_word = self._generate_words()
+        self.start_word, self.target_word, self.path = self._generate_words()
         self.current_word = self.start_word
         self.history = [self.start_word]
 
@@ -147,7 +147,7 @@ class WordLadderEnv(ta.Env):
 
         for length in range(min_length, max_length + 1):
             filtered_words = [  # should maybe upgrade to get_all_words...
-                w.lower() for w in self.dictionary.get_basic_words() if len(w) == length
+                w.lower() for w in self.dictionary.get_most_words() if len(w) == length
             ]
 
             # Create a graph for this word length
@@ -205,8 +205,11 @@ class WordLadderEnv(ta.Env):
                 continue
 
             # Sample starting words rather than examining all pairs
-            sample_size = min(100, G.number_of_nodes())
-            start_words = random.sample(list(G.nodes()), sample_size)
+            valid_words = [
+                word for word in G.nodes() if word in self.dictionary.get_basic_words()
+            ]
+            sample_size = min(100, len(valid_words))
+            start_words = random.sample(valid_words, sample_size)
 
             for start_word in start_words:
                 # Use single-source shortest paths from each start word
@@ -217,6 +220,12 @@ class WordLadderEnv(ta.Env):
                     (word, length)
                     for word, length in lengths.items()
                     if min_steps <= length <= max_steps and word != start_word
+                ]
+                # filter candidates for words in the basic word list
+                candidates = [
+                    (word, length)
+                    for word, length in candidates
+                    if word in self.dictionary.get_basic_words()
                 ]
 
                 # Randomly sample from candidates if there are many
@@ -247,8 +256,16 @@ class WordLadderEnv(ta.Env):
         word_pairs = self.words_with_at_least_n_difference(
             self.word_graph, self.min_distance, self.max_distance
         )
-        start_word, target_word, _ = random.choice(word_pairs)
-        return start_word, target_word
+        start_word, target_word, path = random.choice(word_pairs)
+        for word in path:
+            if word not in self.dictionary.nltk_words:
+                print("not in nltk", word)
+            if word not in self.dictionary.uk_words:
+                print("not in uk", word)
+            if word not in self.dictionary.us_words:
+                print("not in us", word)
+        assert all(word in self.dictionary.nltk_words for word in path)
+        return start_word, target_word, path
 
     def _validate_solution_existence(self, graph, start_word, target_word) -> bool:
         """
@@ -366,3 +383,9 @@ class WordLadderEnv(ta.Env):
 
         # Move is valid only if there is exactly one letter difference
         return difference_count == 1
+
+
+if __name__ == "__main__":
+    env = WordLadderEnv(difficulty="easy")
+    obs = env.reset()
+    print(env.start_word, env.target_word, env.path)

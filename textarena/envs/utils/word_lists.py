@@ -200,6 +200,10 @@ class EnglishDictionary:
         """Get all words in the dictionary as a set"""
         return self.uk_words | self.us_words | self.nltk_words
 
+    def get_most_words(self) -> set[str]:
+        """Get all words in the UK and US dictionaries as a set"""
+        return self.uk_words & self.us_words & self.nltk_words
+
     def get_basic_words(self) -> set[str]:
         """Get all words in the basic NLTK dictionary as a set"""
-        return self.nltk_basic_words
+        return self.nltk_basic_words & self.uk_words & self.us_words
